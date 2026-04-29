@@ -1,0 +1,16 @@
+# Cache / downloaded data
+_cache/
+
+# Generated files
+storm_data.json
+storm_data.js
+map_paths.js
+
+# Node
+storm-app/node_modules/
+storm-app/dist/
+
+# Python
+__pycache__/
+*.pyc
+.env
