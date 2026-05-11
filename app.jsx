@@ -71,20 +71,19 @@ const HAZARD_PALETTE = {
   wind:    ["#1a4a00","#276b00","#3a8a10","#1a3a00","#0d1f00","#091208"],
 };
 
-function mapFill(state, sel, hazard, month, stateYearData) {
+function mapFill(state, sel, hazard, months, stateYearData) {
   if (state === sel) return "#ff6b2d";
   const data = stateYearData?.[hazard] ?? getLTA(state, hazard);
-  const v = month === "annual"
-    ? data.reduce((a,b) => a + (b ?? 0), 0)
-    : (data[month] ?? null);
-  if (v === null) return "#0d0d1a";
   const pal = HAZARD_PALETTE[hazard];
-  if (month === "annual") {
+  if (months === "annual") {
+    const v = data.reduce((a,b) => a + (b ?? 0), 0);
     if (v>20) return pal[0]; if (v>12) return pal[1]; if (v>6) return pal[2];
     if (v>3)  return pal[3]; if (v>1)  return pal[4];
   } else {
-    if (v>4)   return pal[0]; if (v>2)   return pal[1]; if (v>1)  return pal[2];
-    if (v>0.5) return pal[3]; if (v>0.1) return pal[4];
+    const n = months.length;
+    const v = months.reduce((a,m) => a + (data[m] ?? 0), 0);
+    if (v > 4*n)   return pal[0]; if (v > 2*n)   return pal[1]; if (v > n)     return pal[2];
+    if (v > 0.5*n) return pal[3]; if (v > 0.1*n) return pal[4];
   }
   return pal[5];
 }
@@ -344,7 +343,7 @@ export default function App() {
             <div style={{fontSize:8,color:"#bbb",letterSpacing:"0.12em",marginBottom:6}}>CLICK A STATE · {year} {view==="annual"?"ANNUAL":MONTHS[selMonth].toUpperCase()} · {HAZARD_ICONS[hazard]} {hazard.toUpperCase()}</div>
             <USMap
               sel={sel} hov={hov} setSel={setSel} setHov={setHov}
-              getFill={(abbr) => mapFill(abbr,sel,hazard,view==="annual"?"annual":selMonth,allStatesYearData[abbr])}
+              getFill={(abbr) => mapFill(abbr,sel,hazard,view==="annual"?"annual":selMonthsArr,allStatesYearData[abbr])}
             />
             <div style={{display:"flex",justifyContent:"space-between",flexWrap:"wrap",gap:8,marginTop:6}}>
               <div style={{fontSize:10,color:"#ccc",minHeight:16}}>
