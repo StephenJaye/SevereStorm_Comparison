@@ -115,7 +115,7 @@ FIPS_TO_ABBR = {
 APP_STATES = {
     "AL","AR","AZ","CA","CO","FL","GA","IA","ID","IL","IN","KS","KY",
     "LA","MA","MD","MI","MN","MO","MS","MT","NC","ND","NE","NJ","NM",
-    "NV","NY","OH","OK","OR","PA","SC","SD","TN","TX","VA","WA","WI","WV","WY",
+    "NV","NY","OH","OK","OR","PA","SC","SD","TN","TX","UT","VA","WA","WI","WV","WY",
     "CT","DE","ME","NH","RI","VT"
 }
 
