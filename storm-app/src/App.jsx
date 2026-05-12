@@ -372,7 +372,7 @@ export default function App() {
           </div>
         ) : (
           <div style={{marginBottom:14,background:"#08080f",border:"1px solid #1e1e3a",borderRadius:8,padding:"10px 12px"}}>
-            <div style={{fontSize:8,color:"#bbb",letterSpacing:"0.12em",marginBottom:6}}>CLICK A STATE · {year} {view==="annual"?"ANNUAL":MONTHS[selMonth].toUpperCase()} · {HAZARD_ICONS[hazard]} {hazard.toUpperCase()}</div>
+            <div style={{fontSize:12,color:"#fff",letterSpacing:"0.12em",marginBottom:6}}>CLICK A STATE · {year} {view==="annual"?"ANNUAL":MONTHS[selMonth].toUpperCase()} · {HAZARD_ICONS[hazard]} {hazard.toUpperCase()}</div>
             <USMap
               selStates={selStates} hov={hov} onClickState={toggleState} setHov={setHov}
               getFill={(abbr) => mapFill(abbr,hazard,view==="annual"?"annual":selMonthsArr,allStatesYearData[abbr])}
