@@ -46,6 +46,23 @@ function getLTA(state, hazard) {
   return LTA_BASE[hazard]?.[state] ?? Array(12).fill(0);
 }
 
+function getCombinedYearData(states, year) {
+  const result = {};
+  ["tornado","hail","wind"].forEach(hz => {
+    result[hz] = Array.from({length:12}, (_,m) => {
+      if (year === CURRENT_YEAR && m > CURRENT_MONTH) return null;
+      return Math.round(states.reduce((sum,s) => sum + (getYearData(s,year)[hz][m] ?? 0), 0) * 10) / 10;
+    });
+  });
+  return result;
+}
+
+function getCombinedLTA(states, hazard) {
+  return Array.from({length:12}, (_,m) =>
+    Math.round(states.reduce((sum,s) => sum + (getLTA(s,hazard)[m] ?? 0), 0) * 10) / 10
+  );
+}
+
 const fmt = v => (v === null || v === undefined) ? "—" : Number(v).toFixed(1);
 
 function getDeparture(cur, lta) {
@@ -71,7 +88,7 @@ const HAZARD_PALETTE = {
   wind:    ["#1a4a00","#276b00","#3a8a10","#1a3a00","#0d1f00","#091208"],
 };
 
-function mapFill(state, sel, hazard, months, stateYearData) {
+function mapFill(state, hazard, months, stateYearData) {
   const data = stateYearData?.[hazard] ?? getLTA(state, hazard);
   const pal = HAZARD_PALETTE[hazard];
   if (months === "annual") {
@@ -143,12 +160,12 @@ const STATE_PATHS = {
 
 const DATA_STATES = new Set(Object.keys(STATE_NAMES));
 
-function USMap({ sel, hov, setSel, setHov, getFill }) {
+function USMap({ selStates, hov, onClickState, setHov, getFill }) {
   return (
     <div style={{position:"relative",width:"100%",paddingBottom:"62%"}}>
       <svg viewBox="0 0 975 610" style={{position:"absolute",top:0,left:0,width:"100%",height:"100%",cursor:"crosshair"}} preserveAspectRatio="xMidYMid meet">
         {Object.entries(STATE_PATHS).map(([abbr, {d, cx, cy}]) => {
-          const isSel = abbr === sel;
+          const isSel = selStates.has(abbr);
           const isHov = abbr === hov;
           const hasData = DATA_STATES.has(abbr);
           return (
@@ -163,7 +180,7 @@ function USMap({ sel, hov, setSel, setHov, getFill }) {
                   cursor:hasData?"pointer":"default",
                   filter:isSel?"drop-shadow(0 0 5px #ff6b2d99)":"none"
                 }}
-                onClick={() => { if(hasData) setSel(abbr); }}
+                onClick={() => { if(hasData) onClickState(abbr); }}
                 onMouseEnter={() => { if(hasData) setHov(abbr); }}
                 onMouseLeave={() => setHov(null)}
               />
@@ -208,8 +225,15 @@ function DepBar({ value, lta }) {
 }
 
 export default function App() {
-  const [sel,      setSel]      = useState("OK");
-  const [hov,      setHov]      = useState(null);
+  const [selStates, setSelStates] = useState(new Set(["OK"]));
+  const [hov,       setHov]      = useState(null);
+
+  const toggleState = (abbr) => setSelStates(prev => {
+    const next = new Set(prev);
+    if (next.has(abbr)) { if (next.size > 1) next.delete(abbr); }
+    else next.add(abbr);
+    return next;
+  });
   const [selMonths, setSelMonths] = useState(new Set([CURRENT_MONTH > 0 ? CURRENT_MONTH - 1 : 0]));
   const [hazard,   setHazard]   = useState("tornado");
   const [view,     setView]     = useState("monthly");
@@ -236,8 +260,12 @@ export default function App() {
   };
 
   const ALL = Object.keys(STATE_NAMES).sort();
-  const curData = getYearData(sel, year);
-  const lta     = getLTA(sel, hazard);
+  const selArr = [...selStates].sort();
+  const selLabel = selArr.length === 1
+    ? STATE_NAMES[selArr[0]]
+    : selArr.length <= 5 ? selArr.join(" · ") : `${selArr.length} States`;
+  const curData = getCombinedYearData(selArr, year);
+  const lta     = getCombinedLTA(selArr, hazard);
   const validCur = curData[hazard].filter(v => v !== null);
   const maxV = Math.max(...validCur, ...lta, 0.1) * 1.25;
   const allStatesYearData = Object.fromEntries(ALL.map(s => [s, getYearData(s, year)]));
@@ -338,7 +366,7 @@ export default function App() {
         {/* State selector */}
         {!useMap ? (
           <div style={{marginBottom:14}}>
-            <select value={sel} onChange={e=>setSel(e.target.value)} style={{background:"#0d0d1a",border:"1px solid #2a2a4a",color:"#e8e8f0",padding:"9px 12px",fontSize:13,fontFamily:"inherit",borderRadius:4,cursor:"pointer",outline:"none",minWidth:260}}>
+            <select value={selArr[0]} onChange={e=>setSelStates(new Set([e.target.value]))} style={{background:"#0d0d1a",border:"1px solid #2a2a4a",color:"#e8e8f0",padding:"9px 12px",fontSize:13,fontFamily:"inherit",borderRadius:4,cursor:"pointer",outline:"none",minWidth:260}}>
               {ALL.map(s=><option key={s} value={s}>{s} — {STATE_NAMES[s]}</option>)}
             </select>
           </div>
@@ -346,12 +374,12 @@ export default function App() {
           <div style={{marginBottom:14,background:"#08080f",border:"1px solid #1e1e3a",borderRadius:8,padding:"10px 12px"}}>
             <div style={{fontSize:8,color:"#bbb",letterSpacing:"0.12em",marginBottom:6}}>CLICK A STATE · {year} {view==="annual"?"ANNUAL":MONTHS[selMonth].toUpperCase()} · {HAZARD_ICONS[hazard]} {hazard.toUpperCase()}</div>
             <USMap
-              sel={sel} hov={hov} setSel={setSel} setHov={setHov}
-              getFill={(abbr) => mapFill(abbr,sel,hazard,view==="annual"?"annual":selMonthsArr,allStatesYearData[abbr])}
+              selStates={selStates} hov={hov} onClickState={toggleState} setHov={setHov}
+              getFill={(abbr) => mapFill(abbr,hazard,view==="annual"?"annual":selMonthsArr,allStatesYearData[abbr])}
             />
             <div style={{display:"flex",justifyContent:"space-between",flexWrap:"wrap",gap:8,marginTop:6}}>
               <div style={{fontSize:10,color:"#ccc",minHeight:16}}>
-                {hov && hov!==sel && (()=>{
+                {hov && !selStates.has(hov) && (()=>{
                   const hd = allStatesYearData[hov]?.[hazard];
                   const v  = view==="annual"
                     ? (hd ?? []).reduce((a,b)=>a+(b??0),0)
@@ -359,7 +387,7 @@ export default function App() {
                   return <span><span style={{color:"#55ee55"}}>{hov}</span> — {STATE_NAMES[hov]} · {year} {view==="annual"?"Annual":MONTHS[selMonth]}: <span style={{color:"#ffb347"}}>{fmt(v)}</span></span>;
                 })()}
               </div>
-              <div style={{fontSize:10,color:"#ccc"}}><span style={{color:"#ff6b2d"}}>●</span> <strong style={{color:"#fff"}}>{STATE_NAMES[sel]}</strong></div>
+              <div style={{fontSize:10,color:"#ccc"}}><span style={{color:"#ff6b2d"}}>●</span> <strong style={{color:"#fff"}}>{selLabel}</strong></div>
             </div>
             <div style={{display:"flex",gap:10,marginTop:6,flexWrap:"wrap",alignItems:"center"}}>
               <span style={{fontSize:8,color:"#bbb",letterSpacing:"0.08em"}}>RISK SCALE:</span>
@@ -387,7 +415,7 @@ export default function App() {
             {
               label:"Departure",
               val: isFutureMonth?"N/A":statDep===null?"N/A":statDep>900?"N/A":`${statDep>0?"+":""}${Math.round(statDep)}%`,
-              sub:`${STATE_NAMES[sel]} vs long-term avg`,
+              sub:`${selLabel} vs long-term avg`,
               hi:true
             }
           ].map((s,i)=>(
@@ -402,15 +430,15 @@ export default function App() {
         {/* Banner */}
         <div style={{background:"#0a0a14",border:"1px solid #2a2a4a",borderRadius:5,padding:"8px 12px",marginBottom:12,display:"flex",alignItems:"center",gap:8,flexWrap:"wrap"}}>
           <span style={{fontSize:8,color:"#aaa",letterSpacing:"0.1em"}}>ANALYZING:</span>
-          <span style={{fontSize:15,fontWeight:900,color:"#ff6b2d",fontFamily:"'Georgia',serif"}}>{sel}</span>
-          <span style={{fontSize:12,color:"#ddd"}}>{STATE_NAMES[sel]}</span>
+          <span style={{fontSize:15,fontWeight:900,color:"#ff6b2d",fontFamily:"'Georgia',serif"}}>{selArr.length===1?selArr[0]:`${selArr.length} States`}</span>
+          <span style={{fontSize:12,color:"#ddd"}}>{selLabel}</span>
           <span style={{fontSize:10,color:"#bbb",marginLeft:"auto"}}>{HAZARD_ICONS[hazard]} {HAZARD_LABELS[hazard]} · {MONTHS[selMonth]} {year}</span>
         </div>
 
         {view==="monthly" ? (
           <>
             <div style={{background:"#0a0a18",border:"1px solid #1e1e3a",borderRadius:8,padding:"16px",marginBottom:12}}>
-              <div style={{fontSize:8,color:"#aaa",letterSpacing:"0.12em",marginBottom:10}}>MONTHLY FREQUENCY — {STATE_NAMES[sel]} — {HAZARD_LABELS[hazard]}</div>
+              <div style={{fontSize:12,color:"#fff",letterSpacing:"0.12em",marginBottom:10}}>MONTHLY FREQUENCY — {selLabel} — {HAZARD_LABELS[hazard]}</div>
               <div style={{display:"flex",gap:14,marginBottom:10,flexWrap:"wrap"}}>
                 {[{c:"#ff6b2d",l:`${year} (actual)`},{c:"#44cc44",dash:true,l:"LTA avg"}].map(x=>(
                   <div key={x.l} style={{display:"flex",alignItems:"center",gap:5,fontSize:9}}>
@@ -444,11 +472,11 @@ export default function App() {
             </div>
 
             <div style={{background:"#0d0d1a",border:"1px solid #2a2a4a",borderRadius:8,padding:"14px"}}>
-              <div style={{fontSize:8,color:"#aaa",letterSpacing:"0.12em",marginBottom:10}}>DETAIL — {monthRangeLabel.toUpperCase()} {year} — ALL HAZARDS · {STATE_NAMES[sel]}</div>
+              <div style={{fontSize:12,color:"#fff",letterSpacing:"0.12em",marginBottom:10}}>DETAIL — {monthRangeLabel.toUpperCase()} {year} — ALL HAZARDS · {selArr.length===1?selLabel:"MULTIPLE STATES"}</div>
               <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(200px,1fr))",gap:10}}>
                 {["tornado","hail","wind"].map(hz => {
                   const vals = selMonthsArr.map(m => curData[hz][m]);
-                  const ltaVals = selMonthsArr.map(m => getLTA(sel,hz)[m]);
+                  const ltaVals = selMonthsArr.map(m => getCombinedLTA(selArr,hz)[m]);
                   const isFuture = vals.some(v => v === null);
                   const v = isFuture ? null : vals.reduce((a,b) => a+b, 0);
                   const l = ltaVals.reduce((a,b) => a+b, 0);
@@ -480,7 +508,7 @@ export default function App() {
           </>
         ) : (
           <div style={{background:"#0a0a18",border:"1px solid #1e1e3a",borderRadius:8,padding:"16px"}}>
-            <div style={{fontSize:8,color:"#aaa",letterSpacing:"0.12em",marginBottom:12}}>ANNUAL SUMMARY — {STATE_NAMES[sel]} — {year}</div>
+            <div style={{fontSize:12,color:"#fff",letterSpacing:"0.12em",marginBottom:12}}>ANNUAL SUMMARY — {selArr.length===1?selLabel:"MULTIPLE STATES"} — {year}</div>
             <div style={{overflowX:"auto"}}>
               <table style={{width:"100%",borderCollapse:"collapse",fontSize:11}}>
                 <thead>
@@ -508,7 +536,7 @@ export default function App() {
                         <td style={{padding:"5px 8px",color:"#ddd",fontWeight:700,fontSize:9}}>{m}</td>
                         {["tornado","hail","wind"].map(h => {
                           const v = curData[h][i];
-                          const l = getLTA(sel,h)[i];
+                          const l = getCombinedLTA(selArr,h)[i];
                           const d = getDeparture(v,l);
                           const col = getDepColor(d);
                           return [
@@ -526,7 +554,7 @@ export default function App() {
                       const vals = curData[h];
                       const tot  = vals.reduce((a,b)=>a+(b??0),0);
                       const avail= vals.filter(v=>v!==null).length;
-                      const lt   = getLTA(sel,h).slice(0,avail).reduce((a,b)=>a+b,0);
+                      const lt   = getCombinedLTA(selArr,h).slice(0,avail).reduce((a,b)=>a+b,0);
                       const d    = getDeparture(tot,lt);
                       const col  = getDepColor(d);
                       return [
