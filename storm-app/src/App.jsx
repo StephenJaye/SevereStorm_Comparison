@@ -72,7 +72,6 @@ const HAZARD_PALETTE = {
 };
 
 function mapFill(state, sel, hazard, months, stateYearData) {
-  if (state === sel) return "#ff6b2d";
   const data = stateYearData?.[hazard] ?? getLTA(state, hazard);
   const pal = HAZARD_PALETTE[hazard];
   if (months === "annual") {
@@ -157,8 +156,8 @@ function USMap({ sel, hov, setSel, setHov, getFill }) {
               <path
                 d={d}
                 fill={hasData ? getFill(abbr) : "#111"}
-                stroke={isSel ? "#ffaa44" : isHov ? "#66cc66" : "#2a3a4a"}
-                strokeWidth={isSel ? 2 : isHov ? 1.5 : 0.7}
+                stroke={isSel ? "#ff6b2d" : isHov ? "#66cc66" : "#2a3a4a"}
+                strokeWidth={isSel ? 3 : isHov ? 1.5 : 0.7}
                 style={{
                   transition:"fill 0.15s,stroke 0.15s",
                   cursor:hasData?"pointer":"default",
