@@ -286,7 +286,7 @@ export default function App() {
           </div>
           <div>
             <div style={{fontSize:8,color:"#aaa",letterSpacing:"0.15em",marginBottom:4}}>YEAR</div>
-            <select value={year} onChange={e=>setYear(Number(e.target.value))} style={{background:"#0d0d1a",border:"1px solid #44aa44",color:"#88ee88",padding:"8px 12px",fontSize:12,fontFamily:"inherit",borderRadius:4,cursor:"pointer",outline:"none",fontWeight:700}}>
+            <select value={year} onChange={e=>{const y=Number(e.target.value);setYear(y);if(y===CURRENT_YEAR)setSelMonths(prev=>{const f=new Set([...prev].filter(m=>m<=CURRENT_MONTH));return f.size>0?f:new Set([CURRENT_MONTH]);});}} style={{background:"#0d0d1a",border:"1px solid #44aa44",color:"#88ee88",padding:"8px 12px",fontSize:12,fontFamily:"inherit",borderRadius:4,cursor:"pointer",outline:"none",fontWeight:700}}>
               {AVAILABLE_YEARS.map(y=><option key={y} value={y}>{y}</option>)}
             </select>
           </div>
